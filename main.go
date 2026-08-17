@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 )
@@ -8,14 +9,24 @@ import (
 // For env variables
 // go get github.com/joho/godotenv
 
-func loadSQL() {
+var ErrFirstRun = errors.New("first run")
 
+func loadSQL() error {
+
+	return ErrFirstRun
+
+	return nil
 }
 
 func run() error {
 
 	// Password for database scanner input
 	// if frist time run, set password
+
+	if errors.Is(loadSQL(), ErrFirstRun) {
+		fmt.Println("First run erkannt")
+		return nil
+	}
 
 	return nil
 }
