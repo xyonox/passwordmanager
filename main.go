@@ -9,6 +9,9 @@ import (
 // For env variables
 // go get github.com/joho/godotenv
 
+// For database
+// go get github.com/mattn/go-sqlite3
+
 var ErrFirstRun = errors.New("first run")
 
 func loadSQL() error {
