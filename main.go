@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -10,13 +11,31 @@ import (
 // go get github.com/joho/godotenv
 
 // For database
-// go get github.com/mattn/go-sqlite3
+// go get modernc.org/sqlite
 
 var ErrFirstRun = errors.New("first run")
 
+const (
+	dbFile = "sql/database.sql"
+)
+
 func loadSQL() error {
 
-	return ErrFirstRun
+	//return ErrFirstRun
+
+	db, err := sql.Open("sqlite3", dbFile)
+	if err != nil {
+		return err
+	}
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}(db)
+
+	fmt.Println(db.Ping())
 
 	return nil
 }
@@ -26,9 +45,9 @@ func run() error {
 	// Password for database scanner input
 	// if frist time run, set password
 
-	if errors.Is(loadSQL(), ErrFirstRun) {
-		fmt.Println("First run erkannt")
-		return nil
+	err := loadSQL()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -42,4 +61,8 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func executeQuery(db *sql.DB, query string) {
+
 }
