@@ -114,17 +114,17 @@ func decryptFile(password []byte) error {
 	return os.WriteFile(dbFile, plaintext, 0644)
 }
 
-func loadSQL() error {
+func loadSQL() (*sql.DB, error) {
 	_, err := os.Stat(dbFile)
 	if errors.Is(err, os.ErrNotExist) {
-		return ErrFirstRun
+		return nil, ErrFirstRun
 	} else if err != nil {
-		return err
+		return nil, err
 	}
 
 	db, err := sql.Open("sqlite", dbFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer func(db *sql.DB) {
 		err := db.Close()
@@ -136,17 +136,12 @@ func loadSQL() error {
 
 	err = db.Ping()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	fmt.Println("PONG")
 
-	err = db.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return db, nil
 }
 
 func firstRun() error {
@@ -213,10 +208,7 @@ func run() error {
 		return errors.New("no website specified (Flag -w, for help use -h)")
 	}
 
-	// Password for database scanner input
-	// if frist time run, set password
-
-	err := loadSQL()
+	db, err := loadSQL()
 
 	if errors.Is(err, ErrFirstRun) {
 		err = firstRun()
@@ -226,6 +218,21 @@ func run() error {
 	}
 
 	if err != nil {
+		secondErr := db.Close()
+		if secondErr != nil {
+			fmt.Println(err)
+			return secondErr
+		}
+		return err
+	}
+
+	row := db.QueryRow("SELECT password FROM passwords WHERE website = ?", *websiteFlag)
+
+	// Should not print out. instead, in copy
+	fmt.Println("Password: ", row)
+
+	err = db.Close()
+	if err != nil {
 		return err
 	}
 
@@ -233,10 +240,6 @@ func run() error {
 }
 
 func main() {
-	// First steps
-	// Load sqlite database
-	// Create tables
-
 	_, err := os.Stat(dbFile)
 
 	var pw []byte
