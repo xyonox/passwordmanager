@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
+
+	_ "modernc.org/sqlite"
 )
 
 // For env variables
@@ -23,7 +27,12 @@ func loadSQL() error {
 
 	//return ErrFirstRun
 
-	db, err := sql.Open("sqlite3", dbFile)
+	_, err := os.Stat(dbFile)
+	if err != nil {
+		return ErrFirstRun
+	}
+
+	db, err := sql.Open("sqlite", dbFile)
 	if err != nil {
 		return err
 	}
@@ -40,12 +49,42 @@ func loadSQL() error {
 	return nil
 }
 
+func firstRun() error {
+
+	fmt.Println("Enter password for your password database")
+	fmt.Println("Password must be at least 8 characters")
+	fmt.Print("> ")
+
+	scanner := bufio.NewScanner(os.Stdin)
+	if !scanner.Scan() {
+		return errors.New("inable to read firstRun input")
+	}
+
+	input := strings.TrimSpace(scanner.Text())
+
+	if len(input) < 8 {
+		return errors.New("password must be at least 8 characters")
+	}
+
+	//os.Create(dbFile)
+
+	return nil
+}
+
 func run() error {
 
 	// Password for database scanner input
 	// if frist time run, set password
 
 	err := loadSQL()
+
+	if err == ErrFirstRun {
+		err = firstRun()
+		if err != nil {
+			return err
+		}
+	}
+
 	if err != nil {
 		return err
 	}
