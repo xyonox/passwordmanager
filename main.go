@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -136,9 +137,9 @@ func loadSQL() error {
 	err = db.Ping()
 	if err != nil {
 		return err
-	} else {
-		fmt.Println("PONG")
 	}
+
+	fmt.Println("PONG")
 
 	err = db.Close()
 	if err != nil {
@@ -200,6 +201,16 @@ func firstRun() error {
 func run() error {
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return errors.New("not a terminal")
+	}
+
+	websiteFlag := flag.String("w", "", "Website to search your password (REQUIRED)")
+
+	flag.Parse()
+
+	fmt.Println("Website: ", *websiteFlag)
+
+	if *websiteFlag == "" {
+		return errors.New("no website specified (Flag -w, for help use -h)")
 	}
 
 	// Password for database scanner input
