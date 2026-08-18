@@ -25,7 +25,7 @@ import (
 var ErrFirstRun = errors.New("first run")
 
 const (
-	dbFile = "test.txt"
+	dbFile = "database.db"
 )
 
 func DervireKey(password []byte, salt []byte) []byte {
@@ -37,14 +37,14 @@ func DervireKey(password []byte, salt []byte) []byte {
 	return argon2.IDKey(password, salt, time, memory, threads, keyLength)
 }
 
-func encryptFile(password string) error {
+func encryptFile(password []byte) error {
 
 	salt := make([]byte, 16)
 	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
 		return err
 	}
 
-	key := DervireKey([]byte(password), salt)
+	key := DervireKey(password, salt)
 
 	plain, err := os.ReadFile(dbFile)
 	if err != nil {
@@ -70,11 +70,11 @@ func encryptFile(password string) error {
 	fileData = append(fileData, nonce...)
 	fileData = append(fileData, ciphertext...)
 
-	return os.WriteFile(dbFile+".enc", fileData, 0644)
+	return os.WriteFile(dbFile, fileData, 0644)
 }
 
-func decryptFile(password string) error {
-	fileData, err := os.ReadFile(dbFile + ".enc")
+func decryptFile(password []byte) error {
+	fileData, err := os.ReadFile(dbFile)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func decryptFile(password string) error {
 	}
 	salt := fileData[:16]
 
-	key := DervireKey([]byte(password), salt)
+	key := DervireKey(password, salt)
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -110,14 +110,15 @@ func decryptFile(password string) error {
 		return fmt.Errorf("FAILED: Wrong password? or corrupted file? " + err.Error())
 	}
 
-	outFilename := dbFile + ".dec"
-	return os.WriteFile(outFilename, plaintext, 0644)
+	return os.WriteFile(dbFile, plaintext, 0644)
 }
 
 func loadSQL() error {
 	_, err := os.Stat(dbFile)
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
 		return ErrFirstRun
+	} else if err != nil {
+		return err
 	}
 
 	db, err := sql.Open("sqlite", dbFile)
@@ -153,12 +154,36 @@ func firstRun() error {
 		return err
 	}
 
-	// Print password TODO REMOVE
-	for _, c := range pw {
-		fmt.Printf("%c", c)
+	if len(pw) < 8 {
+		return errors.New("password must be at least 8 characters")
 	}
 
-	//os.Create(dbFile)
+	os.Create(dbFile)
+
+	db, err := sql.Open("sqlite", dbFile)
+	if err != nil {
+		return err
+	}
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}(db)
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS passwords (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, password TEXT)")
+	if err != nil {
+		return err
+	}
+
+	db.Close()
+
+	err = encryptFile(pw)
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -189,15 +214,10 @@ func main() {
 	// Load sqlite database
 	// Create tables
 
-	fmt.Print(encryptFile("HeyHuHa"))
-	fmt.Print(decryptFile("HeyHuHa"))
-
-	/*if err := run(); err != nil {
+	if err := run(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
-	*/
 }
 
 func executeQuery(db *sql.DB, query string) {
