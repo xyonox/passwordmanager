@@ -218,7 +218,7 @@ func run() error {
 
 	err := loadSQL()
 
-	if err == ErrFirstRun {
+	if errors.Is(err, ErrFirstRun) {
 		err = firstRun()
 		if err != nil {
 			return err
@@ -256,6 +256,8 @@ func main() {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		fmt.Println("")
 	}
 
 	if err := run(); err != nil {
