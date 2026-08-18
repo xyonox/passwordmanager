@@ -1,11 +1,16 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
+	"golang.org/x/crypto/argon2"
 	"golang.org/x/term"
 
 	_ "modernc.org/sqlite"
@@ -20,8 +25,58 @@ import (
 var ErrFirstRun = errors.New("first run")
 
 const (
-	dbFile = "sql/database.sql"
+	dbFile = "test.txt"
 )
+
+func DervireKey(password []byte, salt []byte) []byte {
+	var time uint32 = 1
+	var memory uint32 = 64 * 1024
+	var threads uint8 = 4
+	var keyLength uint32 = 32
+
+	return argon2.IDKey(password, salt, time, memory, threads, keyLength)
+}
+
+func encryptFile(password string) error {
+
+	salt := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+		return err
+	}
+
+	key := DervireKey([]byte(password), salt)
+
+	plain, err := os.ReadFile(dbFile)
+	if err != nil {
+		return err
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+
+	ciphertext := gcm.Seal(nonce, nonce, plain, nil)
+
+	var fileData []byte
+	fileData = append(fileData, salt...)
+	fileData = append(fileData, nonce...)
+	fileData = append(fileData, ciphertext...)
+
+	return os.WriteFile(dbFile+".enc", fileData, 0644)
+}
+
+func decryptFile(password []byte) error {
+
+	return nil
+}
 
 func loadSQL() error {
 
@@ -100,10 +155,15 @@ func main() {
 	// First steps
 	// Load sqlite database
 	// Create tables
-	if err := run(); err != nil {
+
+	fmt.Print(encryptFile("HeyHuHa"))
+
+	/*if err := run(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	*/
 }
 
 func executeQuery(db *sql.DB, query string) {
