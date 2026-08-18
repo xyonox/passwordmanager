@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"database/sql"
 	"errors"
 	"fmt"
 	"os"
-	"strings"
+
+	"golang.org/x/term"
 
 	_ "modernc.org/sqlite"
 )
@@ -51,19 +51,23 @@ func loadSQL() error {
 
 func firstRun() error {
 
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return errors.New("not a terminal")
+	}
+
 	fmt.Println("Enter password for your password database")
 	fmt.Println("Password must be at least 8 characters")
 	fmt.Print("> ")
 
-	scanner := bufio.NewScanner(os.Stdin)
-	if !scanner.Scan() {
-		return errors.New("inable to read firstRun input")
+	pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+
+	if err != nil {
+		return err
 	}
 
-	input := strings.TrimSpace(scanner.Text())
-
-	if len(input) < 8 {
-		return errors.New("password must be at least 8 characters")
+	// Print password TODO REMOVE
+	for _, c := range pw {
+		fmt.Printf("%c", c)
 	}
 
 	//os.Create(dbFile)
