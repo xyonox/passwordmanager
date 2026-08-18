@@ -133,23 +133,27 @@ func loadSQL() error {
 		}
 	}(db)
 
-	fmt.Println(db.Ping())
+	err = db.Ping()
+	if err != nil {
+		return err
+	} else {
+		fmt.Println("PONG")
+	}
+
+	err = db.Close()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func firstRun() error {
-
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return errors.New("not a terminal")
-	}
-
 	fmt.Println("Enter password for your password database")
 	fmt.Println("Password must be at least 8 characters")
 	fmt.Print("> ")
 
 	pw, err := term.ReadPassword(int(os.Stdin.Fd()))
-
 	if err != nil {
 		return err
 	}
@@ -158,7 +162,10 @@ func firstRun() error {
 		return errors.New("password must be at least 8 characters")
 	}
 
-	os.Create(dbFile)
+	_, err = os.Create(dbFile)
+	if err != nil {
+		return err
+	}
 
 	db, err := sql.Open("sqlite", dbFile)
 	if err != nil {
@@ -172,15 +179,17 @@ func firstRun() error {
 		}
 	}(db)
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS passwords (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, password TEXT)")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS passwords (id INTEGER PRIMARY KEY AUTOINCREMENT, website TEXT ,name TEXT, password TEXT)")
 	if err != nil {
 		return err
 	}
 
-	db.Close()
+	err = db.Close()
+	if err != nil {
+		return err
+	}
 
 	err = encryptFile(pw)
-
 	if err != nil {
 		return err
 	}
@@ -189,6 +198,9 @@ func firstRun() error {
 }
 
 func run() error {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return errors.New("not a terminal")
+	}
 
 	// Password for database scanner input
 	// if frist time run, set password
@@ -214,7 +226,38 @@ func main() {
 	// Load sqlite database
 	// Create tables
 
+	_, err := os.Stat(dbFile)
+
+	var pw []byte
+
+	if err == nil {
+		fmt.Println("Enter password for your password database")
+		fmt.Print("> ")
+
+		pw, err = term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		err = decryptFile(pw)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+
 	if err := run(); err != nil {
+		fmt.Println(err)
+	}
+
+	if pw == nil {
+		return
+	}
+
+	err = encryptFile(pw)
+
+	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
