@@ -100,7 +100,7 @@ func decryptFile(password []byte) error {
 	nonceStart := 16
 	nonceEnd := nonceStart + gcm.NonceSize()
 	if len(fileData) < nonceEnd {
-		return fmt.Errorf("Nonce not found in filedata")
+		return fmt.Errorf("nonce not found in file data")
 	}
 	nonce := fileData[nonceStart:nonceEnd]
 	ciphertext := fileData[nonceEnd:]
