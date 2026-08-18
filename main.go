@@ -63,7 +63,7 @@ func encryptFile(password string) error {
 
 	nonce := make([]byte, gcm.NonceSize())
 
-	ciphertext := gcm.Seal(nonce, nonce, plain, nil)
+	ciphertext := gcm.Seal(nil, nonce, plain, nil)
 
 	var fileData []byte
 	fileData = append(fileData, salt...)
@@ -73,15 +73,48 @@ func encryptFile(password string) error {
 	return os.WriteFile(dbFile+".enc", fileData, 0644)
 }
 
-func decryptFile(password []byte) error {
+func decryptFile(password string) error {
+	fileData, err := os.ReadFile(dbFile + ".enc")
+	if err != nil {
+		return err
+	}
 
-	return nil
+	if len(fileData) < 16 {
+		return fmt.Errorf("filedata too short")
+	}
+	salt := fileData[:16]
+
+	key := DervireKey([]byte(password), salt)
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return err
+	}
+
+	nonceStart := 16
+	nonceEnd := nonceStart + gcm.NonceSize()
+	if len(fileData) < nonceEnd {
+		return fmt.Errorf("Nonce not found in filedata")
+	}
+	nonce := fileData[nonceStart:nonceEnd]
+	ciphertext := fileData[nonceEnd:]
+
+	// 4. Entschlüsseln
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return fmt.Errorf("FAILED: Wrong password? or corrupted file? " + err.Error())
+	}
+
+	outFilename := dbFile + ".dec"
+	return os.WriteFile(outFilename, plaintext, 0644)
 }
 
 func loadSQL() error {
-
-	//return ErrFirstRun
-
 	_, err := os.Stat(dbFile)
 	if err != nil {
 		return ErrFirstRun
@@ -157,6 +190,7 @@ func main() {
 	// Create tables
 
 	fmt.Print(encryptFile("HeyHuHa"))
+	fmt.Print(decryptFile("HeyHuHa"))
 
 	/*if err := run(); err != nil {
 		fmt.Println(err)
