@@ -36,7 +36,7 @@ const (
 	dbFile = "database.db"
 )
 
-func DervireKey(password []byte, salt []byte) []byte {
+func DerireKey(password []byte, salt []byte) []byte {
 	var time uint32 = 1
 	var memory uint32 = 64 * 1024
 	var threads uint8 = 4
@@ -52,7 +52,7 @@ func encryptFile(password []byte) error {
 		return err
 	}
 
-	key := DervireKey(password, salt)
+	key := DerireKey(password, salt)
 
 	plain, err := os.ReadFile(dbFile)
 	if err != nil {
@@ -70,6 +70,9 @@ func encryptFile(password []byte) error {
 	}
 
 	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return err
+	}
 
 	ciphertext := gcm.Seal(nil, nonce, plain, nil)
 
@@ -92,7 +95,7 @@ func decryptFile(password []byte) error {
 	}
 	salt := fileData[:16]
 
-	key := DervireKey(password, salt)
+	key := DerireKey(password, salt)
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -169,6 +172,11 @@ func firstRun() error {
 		return err
 	}
 
+	err = os.Chmod(dbFile, 0600)
+	if err != nil {
+		return err
+	}
+
 	db, err := sql.Open("sqlite", dbFile)
 	if err != nil {
 		return err
@@ -228,6 +236,8 @@ func run() error {
 		if err != nil {
 			return err
 		}
+
+		db, err = loadSQL()
 	}
 
 	if err != nil {
@@ -306,6 +316,13 @@ func run() error {
 			length++
 		}
 
+		defer func(rows *sql.Rows) {
+			err := rows.Close()
+			if err != nil {
+				fmt.Println(err)
+			}
+		}(rows)
+
 		finalId := -1
 		scanner := bufio.NewScanner(os.Stdin)
 
@@ -324,7 +341,14 @@ func run() error {
 			if err != nil {
 				return err
 			}
+			if inputInt < 0 || inputInt >= len(ids) {
+				return errors.New("invalid selection")
+			}
 			finalId = ids[inputInt]
+		}
+
+		if finalId == -1 {
+			return errors.New("false input")
 		}
 
 		fmt.Println(finalId)
@@ -368,6 +392,13 @@ func run() error {
 			length++
 		}
 
+		defer func(rows *sql.Rows) {
+			err := rows.Close()
+			if err != nil {
+				fmt.Println(err)
+			}
+		}(rows)
+
 		finalId := -1
 		scanner := bufio.NewScanner(os.Stdin)
 
@@ -385,6 +416,9 @@ func run() error {
 			inputInt, err := strconv.Atoi(input)
 			if err != nil {
 				return err
+			}
+			if inputInt < 0 || inputInt >= len(ids) {
+				return errors.New("invalid selection")
 			}
 			finalId = ids[inputInt]
 		}
@@ -416,6 +450,13 @@ func run() error {
 			fmt.Println(ratePassword(password, website, name))
 			fmt.Println("")
 		}
+
+		defer func(rows *sql.Rows) {
+			err := rows.Close()
+			if err != nil {
+				fmt.Println(err)
+			}
+		}(rows)
 	}
 
 	if *websiteFlag != "" {
@@ -443,6 +484,13 @@ func run() error {
 			length++
 		}
 
+		defer func(rows *sql.Rows) {
+			err := rows.Close()
+			if err != nil {
+				fmt.Println(err)
+			}
+		}(rows)
+
 		if length == 0 {
 			fmt.Println("No passwords found")
 		} else if length == 1 {
@@ -459,7 +507,9 @@ func run() error {
 			if err != nil {
 				return err
 			}
-
+			if inputInt < 0 || inputInt >= len(passwords) {
+				return errors.New("invalid selection")
+			}
 			clipboard.Write(clipboard.FmtText, []byte(passwords[inputInt]))
 			fmt.Println("Copied to clipboard")
 		}
