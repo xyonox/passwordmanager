@@ -104,7 +104,6 @@ Copied to clipboard
 
 - This is a learning project and has not been audited for security.
 - The database is decrypted to `database.db` while the application is running.
-- Passwords may be printed directly to the terminal for single search results.
 - There is no password strength validation beyond the eight-character minimum
   for the master password.
 - The command-line input and database error handling still need improvement.
