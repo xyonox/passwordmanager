@@ -186,9 +186,11 @@ func run() error {
 		return errors.New("not a terminal")
 	}
 
-	websiteFlag := flag.String("w", "", "Website to search your password")
+	websiteFlag := flag.String("w", "", "Website to search your password (last prio)")
 
-	saveNewPasswordFlag := flag.Bool("n", false, "Save a password")
+	saveNewPasswordFlag := flag.Bool("n", false, "Save a password (first prio)")
+
+	//editPasswordFlag := flag.Bool("e", false, "Edit a password (second prio)")
 
 	flag.Parse()
 
@@ -252,7 +254,9 @@ func run() error {
 			return err
 		}
 
-	} else if *websiteFlag != "" {
+	}
+
+	if *websiteFlag != "" {
 		var password string
 		var name string
 
@@ -293,7 +297,7 @@ func run() error {
 			if err != nil {
 				return err
 			}
-			fmt.Println("Password: ", passwords[inputInt-1])
+			fmt.Println("Password: ", passwords[inputInt])
 		}
 	}
 
