@@ -78,7 +78,7 @@ func encryptFile(password []byte) error {
 	fileData = append(fileData, nonce...)
 	fileData = append(fileData, ciphertext...)
 
-	return os.WriteFile(dbFile, fileData, 0644)
+	return os.WriteFile(dbFile, fileData, 0600)
 }
 
 func decryptFile(password []byte) error {
@@ -117,7 +117,7 @@ func decryptFile(password []byte) error {
 		return fmt.Errorf("FAILED: Wrong password? or corrupted file? " + err.Error())
 	}
 
-	return os.WriteFile(dbFile, plaintext, 0644)
+	return os.WriteFile(dbFile, plaintext, 0600)
 }
 
 func loadSQL() (*sql.DB, error) {
