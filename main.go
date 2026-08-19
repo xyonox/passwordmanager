@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -10,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/term"
@@ -81,7 +83,7 @@ func decryptFile(password []byte) error {
 	}
 
 	if len(fileData) < 16 {
-		return fmt.Errorf("filedata too short")
+		return fmt.Errorf("file data too short")
 	}
 	salt := fileData[:16]
 
@@ -105,7 +107,6 @@ func decryptFile(password []byte) error {
 	nonce := fileData[nonceStart:nonceEnd]
 	ciphertext := fileData[nonceEnd:]
 
-	// 4. Entschlüsseln
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
 		return fmt.Errorf("FAILED: Wrong password? or corrupted file? " + err.Error())
@@ -126,20 +127,6 @@ func loadSQL() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func(db *sql.DB) {
-		err := db.Close()
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-	}(db)
-
-	err = db.Ping()
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Println("PONG")
 
 	return db, nil
 }
@@ -198,15 +185,11 @@ func run() error {
 		return errors.New("not a terminal")
 	}
 
-	websiteFlag := flag.String("w", "", "Website to search your password (REQUIRED)")
+	websiteFlag := flag.String("w", "", "Website to search your password")
+
+	saveNewPasswordFlag := flag.Bool("n", false, "Save a password")
 
 	flag.Parse()
-
-	fmt.Println("Website: ", *websiteFlag)
-
-	if *websiteFlag == "" {
-		return errors.New("no website specified (Flag -w, for help use -h)")
-	}
 
 	db, err := loadSQL()
 
@@ -226,15 +209,75 @@ func run() error {
 		return err
 	}
 
-	row := db.QueryRow("SELECT password FROM passwords WHERE website = ?", *websiteFlag)
-
-	// Should not print out. instead, in copy
-	fmt.Println("Password: ", row)
-
-	err = db.Close()
+	/*_, err = db.Exec("INSERT INTO passwords (website, name ,password) VALUES (?, ?,?)", "test.com", "testa testo", "pw")
 	if err != nil {
 		return err
 	}
+
+	*/
+
+	if *saveNewPasswordFlag {
+		fmt.Println("Enter password the new password ")
+		fmt.Print("> ")
+
+		pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return err
+		}
+		fmt.Println("")
+
+		fmt.Println("Enter website name")
+		fmt.Print("> ")
+
+		scanner := bufio.NewScanner(os.Stdin)
+		if !scanner.Scan() {
+			return errors.New("no input")
+		}
+		website := strings.TrimSpace(scanner.Text())
+
+		fmt.Println("")
+
+		fmt.Println("Enter a username for the password")
+
+		if !scanner.Scan() {
+			return errors.New("no input")
+		}
+		name := strings.TrimSpace(scanner.Text())
+
+		_, err = db.Exec("INSERT INTO passwords (website, name ,password) VALUES (?, ?,?)", website, name, pw)
+		if err != nil {
+			return err
+		}
+
+	} else if *websiteFlag != "" {
+		var password string
+		var name string
+
+		rows, err := db.Query(
+			"SELECT password, name FROM passwords WHERE website = ?",
+			*websiteFlag)
+		if err != nil {
+			return err
+		}
+
+		for rows.Next() {
+			err := rows.Scan(&password, &name)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Website: ", *websiteFlag)
+			fmt.Println("Name: ", name)
+			fmt.Println("Password: ", password)
+		}
+	}
+
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}(db)
 
 	return nil
 }
