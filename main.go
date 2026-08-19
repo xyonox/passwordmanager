@@ -26,6 +26,9 @@ import (
 // For database
 // go get modernc.org/sqlite
 
+// For clipboard
+// go get golang.design/x/clipboard@latest
+
 var ErrFirstRun = errors.New("first run")
 
 const (
