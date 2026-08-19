@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -238,11 +239,13 @@ func run() error {
 		fmt.Println("")
 
 		fmt.Println("Enter a username for the password")
+		fmt.Print("> ")
 
 		if !scanner.Scan() {
 			return errors.New("no input")
 		}
 		name := strings.TrimSpace(scanner.Text())
+		fmt.Println("")
 
 		_, err = db.Exec("INSERT INTO passwords (website, name ,password) VALUES (?, ?,?)", website, name, pw)
 		if err != nil {
@@ -260,14 +263,37 @@ func run() error {
 			return err
 		}
 
+		length := 0
+		passwords := []string{}
+
 		for rows.Next() {
 			err := rows.Scan(&password, &name)
 			if err != nil {
 				return err
 			}
-			fmt.Println("Website: ", *websiteFlag)
-			fmt.Println("Name: ", name)
-			fmt.Println("Password: ", password)
+
+			fmt.Printf("%v: website: %v, name: %v\n", length, *websiteFlag, name)
+			passwords = append(passwords, password)
+			length++
+		}
+
+		if length == 0 {
+			fmt.Println("No passwords found")
+		} else if length == 1 {
+			fmt.Println("Password: ", passwords[0])
+		} else if length > 1 {
+			fmt.Println("multiple passwords found, please select one:")
+			scanner := bufio.NewScanner(os.Stdin)
+			fmt.Print("> ")
+			if !scanner.Scan() {
+				return errors.New("no input")
+			}
+			input := strings.TrimSpace(scanner.Text())
+			inputInt, err := strconv.Atoi(input)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Password: ", passwords[inputInt-1])
 		}
 	}
 
