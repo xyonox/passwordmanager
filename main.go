@@ -190,7 +190,7 @@ func run() error {
 
 	saveNewPasswordFlag := flag.Bool("n", false, "Save a password (first prio)")
 
-	//editPasswordFlag := flag.Bool("e", false, "Edit a password (second prio)")
+	editPasswordFlag := flag.String("e", "", "Edit a password, value has to be the website of the password (second prio)")
 
 	flag.Parse()
 
@@ -250,6 +250,68 @@ func run() error {
 		fmt.Println("")
 
 		_, err = db.Exec("INSERT INTO passwords (website, name ,password) VALUES (?, ?,?)", website, name, pw)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	if *editPasswordFlag != "" {
+		fmt.Println("Searching the website: ", *editPasswordFlag)
+		rows, err := db.Query(
+			"SELECT id, name FROM passwords WHERE website = ?",
+			*editPasswordFlag)
+		if err != nil {
+			return err
+		}
+
+		var id int
+		var name string
+
+		length := 0
+		ids := []int{}
+
+		for rows.Next() {
+			err := rows.Scan(&id, &name)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("%v: website: %v, name: %v\n", length, *editPasswordFlag, name)
+			ids = append(ids, id)
+			length++
+		}
+
+		finalId := -1
+		scanner := bufio.NewScanner(os.Stdin)
+
+		if length == 0 {
+			fmt.Println("Website not found")
+		} else if length == 1 {
+			finalId = ids[0]
+		} else if length > 1 {
+			fmt.Println("multiple websites found, please select one:")
+			fmt.Print("> ")
+			if !scanner.Scan() {
+				return errors.New("no input")
+			}
+			input := strings.TrimSpace(scanner.Text())
+			inputInt, err := strconv.Atoi(input)
+			if err != nil {
+				return err
+			}
+			finalId = ids[inputInt]
+		}
+
+		fmt.Println(finalId)
+		fmt.Println("Enter new password")
+		fmt.Print("> ")
+		pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return err
+		}
+		fmt.Println("")
+		_, err = db.Exec("UPDATE passwords SET password = ? WHERE id = ?", pw, finalId)
 		if err != nil {
 			return err
 		}
