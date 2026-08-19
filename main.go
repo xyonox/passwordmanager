@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.design/x/clipboard"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/term"
 
@@ -187,6 +188,11 @@ func firstRun() error {
 func run() error {
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return errors.New("not a terminal")
+	}
+
+	err := clipboard.Init()
+	if err != nil {
+		return err
 	}
 
 	websiteFlag := flag.String("w", "", "Website to search your password (last prio)")
@@ -418,7 +424,9 @@ func run() error {
 			if err != nil {
 				return err
 			}
-			fmt.Println("Password: ", passwords[inputInt])
+
+			clipboard.Write(clipboard.FmtText, []byte(passwords[inputInt]))
+			fmt.Println("Copied to clipboard")
 		}
 	}
 
