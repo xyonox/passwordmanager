@@ -149,6 +149,20 @@ func firstRun() error {
 	if len(pw) < 8 {
 		return errors.New("password must be at least 8 characters")
 	}
+	fmt.Println("")
+	fmt.Println("Enter password again")
+	fmt.Print("> ")
+
+	reinput, err := term.ReadPassword(int(os.Stdin.Fd()))
+	if err != nil {
+		return err
+	}
+
+	if string(pw) != string(reinput) {
+		return errors.New("passwords do not match")
+	}
+
+	fmt.Println("")
 
 	_, err = os.Create(dbFile)
 	if err != nil {
@@ -223,12 +237,9 @@ func run() error {
 		return err
 	}
 
-	/*_, err = db.Exec("INSERT INTO passwords (website, name ,password) VALUES (?, ?,?)", "test.com", "testa testo", "pw")
-	if err != nil {
-		return err
+	if db == nil {
+		return errors.New("db is nil")
 	}
-
-	*/
 
 	if *saveNewPasswordFlag {
 		fmt.Println("Enter password the new password ")
@@ -374,6 +385,10 @@ func run() error {
 				return err
 			}
 			finalId = ids[inputInt]
+		}
+
+		if finalId == -1 {
+			return errors.New("false input")
 		}
 
 		_, err = db.Exec("DELETE FROM passwords WHERE id = ?", finalId)
