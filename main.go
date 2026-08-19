@@ -217,6 +217,8 @@ func run() error {
 
 	deleteFlag := flag.String("d", "", "Delete a password, value has to be the website of the password (third prio)")
 
+	ratedPasswordFlag := flag.Bool("r", false, "Rate your passwords (fourth prio)")
+
 	flag.Parse()
 
 	db, err := loadSQL()
@@ -398,6 +400,24 @@ func run() error {
 		fmt.Println("Website deleted")
 	}
 
+	if *ratedPasswordFlag {
+		rows, err := db.Query("SELECT website, name, password FROM passwords")
+		if err != nil {
+			return err
+		}
+
+		for rows.Next() {
+			website, name, password := "", "", ""
+			err := rows.Scan(&website, &name, &password)
+			if err != nil {
+				return err
+			}
+
+			fmt.Println(ratePassword(password, website, name))
+			fmt.Println("")
+		}
+	}
+
 	if *websiteFlag != "" {
 		var password string
 		var name string
@@ -454,6 +474,51 @@ func run() error {
 	}(db)
 
 	return nil
+}
+
+func ratePassword(password string, website string, name string) string {
+	passwordLength := len(password)
+	hasUppercase := false
+	for _, r := range password {
+		if r >= 'A' && r <= 'Z' {
+			hasUppercase = true
+			break
+		}
+	}
+	hasNumber := false
+	for _, r := range password {
+		if r >= '0' && r <= '9' {
+			hasNumber = true
+		}
+	}
+	hasSpecial := false
+	for _, r := range password {
+		if r == '!' || r == '@' || r == '#' || r == '$' || r == '%' || r == '^' || r == '&' || r == '*' || r == '(' || r == ')' || r == '_' || r == '+' || r == '=' || r == '{' || r == '}' || r == '[' || r == ']' || r == '|' || r == '\\' || r == ';' || r == ':' || r == '\'' || r == '"' || r == '<' || r == '>' || r == ',' || r == '.' || r == '/' {
+			hasSpecial = true
+		}
+	}
+
+	main := fmt.Sprintf("%v: %v", website, name)
+	recommendations := []string{}
+	if passwordLength < 12 {
+		recommendations = append(recommendations, "Password is too short, should be at least 12 characters")
+	}
+	if !hasUppercase {
+		recommendations = append(recommendations, "Password does not contain uppercase letters")
+	}
+	if !hasNumber {
+		recommendations = append(recommendations, "Password does not contain numbers")
+	}
+	if !hasSpecial {
+		recommendations = append(recommendations, "Password does not contain special characters")
+	}
+	if len(recommendations) == 0 {
+		return fmt.Sprintf(main + ". Password should be strong enough")
+	}
+
+	joinedRecommendations := main + "\n----- Recommendations -----\n" + strings.Join(recommendations, "\n")
+	return joinedRecommendations
+
 }
 
 func main() {
